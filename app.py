@@ -8,8 +8,8 @@ from bs4 import BeautifulSoup
 
 # Direktori Penyimpanan yang Diperbolehkan oleh Streamlit Cloud
 BASE_PATH = "/tmp"
-DOWNLOAD_PATH = os.path.join(BASE_PATH, "Manga_Downloads")
-TRANSLATOR_PATH = os.path.join(BASE_PATH, "manga-image-translator")
+DOWNLOAD_PATH = "/tmp/Manga_Downloads"
+TRANSLATOR_PATH = "/tmp/manga-image-translator"
 
 
 def install_missing_libs():
@@ -42,6 +42,10 @@ def install_dependencies():
                 return
     
     os.chdir(TRANSLATOR_PATH)
+    
+    with st.spinner("Menghapus OpenCV lama..."):
+        subprocess.run(["pip", "uninstall", "-y", "opencv-python", "opencv-contrib-python"], capture_output=True, text=True)
+    
     with st.spinner("Menginstal dependencies..."):
         result = subprocess.run(
             ["pip", "install", "--no-cache-dir", "-r", "requirements.txt", "opencv-python-headless"], 
@@ -52,6 +56,13 @@ def install_dependencies():
             return
     
     st.success("✅ Instalasi selesai!")
+
+def check_opencv():
+    try:
+        import cv2
+        st.success("✅ OpenCV berhasil diimpor!")
+    except ImportError as e:
+        st.error(f"❌ OpenCV gagal diimpor: {e}")
     
 def run_translator(save_folder):
     """Menjalankan manga translator dan menangani error"""
@@ -133,6 +144,7 @@ def scrape_manga(base_url, total_pages):
 st.title("📖 Manga Scraper & Translator")
 if st.button("Install Dependencies"):
     install_dependencies()
+    check_opencv()
     install_missing_libs()
     check_directories()
 
