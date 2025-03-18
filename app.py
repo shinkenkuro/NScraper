@@ -1,25 +1,25 @@
 import streamlit as st
 import os
 import requests
-import zipfile
 import shutil
-import git
+import subprocess
 from bs4 import BeautifulSoup
 
-# Direktori penyimpanan di Streamlit Cloud
-DOWNLOAD_PATH = "/app/Manga_Downloads"
+# Direktori Penyimpanan yang Diperbolehkan oleh Streamlit Cloud
+BASE_PATH = "/tmp"
+DOWNLOAD_PATH = os.path.join(BASE_PATH, "Manga_Downloads")
+TRANSLATOR_PATH = os.path.join(BASE_PATH, "manga-image-translator")
 
 def install_dependencies():
     repo_url = "https://github.com/zyddnys/manga-image-translator.git"
-    clone_dir = "/app/manga-image-translator"
     
-    if not os.path.exists(clone_dir):
+    if not os.path.exists(TRANSLATOR_PATH):
         with st.spinner("Mengunduh translator..."):
-            git.Repo.clone_from(repo_url, clone_dir)
+            subprocess.run(["git", "clone", repo_url, TRANSLATOR_PATH], check=True)
             st.success("✅ Translator berhasil diunduh!")
-    
-    os.chdir(clone_dir)
-    os.system("pip install -r requirements.txt")
+
+    os.chdir(TRANSLATOR_PATH)
+    subprocess.run(["pip", "install", "-r", "requirements.txt"], check=True)
     st.success("✅ Instalasi dependencies selesai!")
 
 def download_image(img_url, save_path):
@@ -65,8 +65,8 @@ def scrape_manga(base_url, total_pages):
     
     st.success(f"🔠 Menjalankan Translator untuk: `{save_folder}`")
     
-    os.chdir("/app/manga-image-translator")
-    os.system(f"python -m manga_translator local -v -i \"{save_folder}\"")
+    os.chdir(TRANSLATOR_PATH)
+    subprocess.run(["python", "-m", "manga_translator", "local", "-v", "-i", save_folder], check=True)
     
     translated_folder = f"{save_folder}-translated"
     if os.path.exists(translated_folder) and os.listdir(translated_folder):
