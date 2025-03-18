@@ -15,11 +15,11 @@ TRANSLATOR_PATH = os.path.join(BASE_PATH, "manga-image-translator")
 def install_missing_libs():
     """Instal pustaka sistem yang diperlukan untuk OpenCV"""
     st.write("🔄 Menginstal pustaka sistem yang hilang...")
-    result = os.system("apt-get update && apt-get install -y libgl1-mesa-glx")
+    result = os.system("apt-get update && apt-get install -y libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender1")
     if result == 0:
-        st.success("✅ Pustaka `libGL.so.1` berhasil diinstal!")
+        st.success("✅ Pustaka OpenCV berhasil diinstal!")
     else:
-        st.error("❌ Gagal menginstal `libGL.so.1`. Coba jalankan secara manual.")
+        st.error("❌ Gagal menginstal pustaka yang dibutuhkan. Coba jalankan secara manual.")
 
 
 def check_directories():
