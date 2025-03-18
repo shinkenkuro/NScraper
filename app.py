@@ -11,6 +11,17 @@ BASE_PATH = "/tmp"
 DOWNLOAD_PATH = os.path.join(BASE_PATH, "Manga_Downloads")
 TRANSLATOR_PATH = os.path.join(BASE_PATH, "manga-image-translator")
 
+
+def install_missing_libs():
+    """Instal pustaka sistem yang diperlukan untuk OpenCV"""
+    st.write("🔄 Menginstal pustaka sistem yang hilang...")
+    result = os.system("apt-get update && apt-get install -y libgl1-mesa-glx")
+    if result == 0:
+        st.success("✅ Pustaka `libGL.so.1` berhasil diinstal!")
+    else:
+        st.error("❌ Gagal menginstal `libGL.so.1`. Coba jalankan secara manual.")
+
+
 def check_directories():
     """Pastikan direktori ada sebelum menjalankan proses"""
     os.makedirs(DOWNLOAD_PATH, exist_ok=True)
@@ -119,6 +130,9 @@ def scrape_manga(base_url, total_pages):
 st.title("📖 Manga Scraper & Translator")
 if st.button("Install Dependencies"):
     install_dependencies()
+    install_missing_libs()
+    check_directories()
+
 
 base_url = st.text_input("Masukkan URL Manga:")
 total_pages = st.number_input("Masukkan jumlah halaman:", min_value=1, step=1)
