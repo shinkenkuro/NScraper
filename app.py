@@ -1,92 +1,16 @@
 import streamlit as st
 import os
 import requests
+import zipfile
 import shutil
-import subprocess
-import shlex
 from bs4 import BeautifulSoup
 
-# Direktori Penyimpanan yang Diperbolehkan oleh Streamlit Cloud
-BASE_PATH = "/tmp"
-DOWNLOAD_PATH = "/tmp/Manga_Downloads"
-TRANSLATOR_PATH = "/tmp/manga-image-translator"
-
-
-def install_missing_libs():
-    """Instal pustaka sistem yang diperlukan untuk OpenCV"""
-    st.write("🔄 Menginstal pustaka sistem yang hilang...")
-    result = os.system("apt-get update && apt-get install -y libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender1")
-    if result == 0:
-        st.success("✅ Pustaka OpenCV berhasil diinstal!")
-    else:
-        st.error("❌ Gagal menginstal pustaka yang dibutuhkan. Coba jalankan secara manual.")
-
-
-def check_directories():
-    """Pastikan direktori ada sebelum menjalankan proses"""
-    os.makedirs(DOWNLOAD_PATH, exist_ok=True)
-    if not os.path.exists(TRANSLATOR_PATH):
-        st.error(f"❌ Folder `{TRANSLATOR_PATH}` tidak ditemukan! Jalankan instalasi terlebih dahulu.")
-        return False
-    return True
-
-def install_dependencies():
-    """Mengunduh repository manga-image-translator dan menginstal dependencies"""
-    repo_url = "https://github.com/zyddnys/manga-image-translator.git"
-    
-    if not os.path.exists(TRANSLATOR_PATH):
-        with st.spinner("Mengunduh manga-image-translator..."):
-            result = subprocess.run(["git", "clone", repo_url, TRANSLATOR_PATH], capture_output=True, text=True)
-            if result.returncode != 0:
-                st.error(f"❌ Gagal clone repository:\n{result.stderr}")
-                return
-    
-    os.chdir(TRANSLATOR_PATH)
-    
-    with st.spinner("Menghapus OpenCV lama..."):
-        subprocess.run(["pip", "uninstall", "-y", "opencv-python", "opencv-contrib-python"], capture_output=True, text=True)
-    
-    with st.spinner("Menginstal dependencies..."):
-        result = subprocess.run(
-            ["pip", "install", "--no-cache-dir", "-r", "requirements.txt", "opencv-python-headless"], 
-            capture_output=True, text=True
-        )
-        if result.returncode != 0:
-            st.error(f"❌ Gagal install dependencies:\n{result.stderr}")
-            return
-    
-    st.success("✅ Instalasi selesai!")
-
-def check_opencv():
-    try:
-        import cv2
-        st.success("✅ OpenCV berhasil diimpor!")
-    except ImportError as e:
-        st.error(f"❌ OpenCV gagal diimpor: {e}")
-    
-def run_translator(save_folder):
-    """Menjalankan manga translator dan menangani error"""
-    if not check_directories():
-        return
-    
-    if not os.path.exists(save_folder):
-        st.error(f"❌ Folder `{save_folder}` tidak ditemukan!")
-        return
-    
-    safe_path = shlex.quote(save_folder)
-    os.chdir(TRANSLATOR_PATH)
-    
-    with st.spinner(f"🔠 Menerjemahkan manga di `{save_folder}`..."):
-        result = subprocess.run(
-            f"python3 -m manga_translator local -v -i {safe_path}",
-            shell=True, capture_output=True, text=True
-        )
-    
-        if result.returncode != 0:
-            st.error(f"❌ Gagal menjalankan translator:\n{result.stderr}")
-            return
-    
-    st.success("✅ Terjemahan selesai!")
+# Install dependencies
+os.system("pip install beautifulsoup4 requests")
+os.system("git clone https://github.com/zyddnys/manga-image-translator.git")
+os.chdir("manga-image-translator")
+os.system("pip install -r requirements.txt")
+os.chdir("..")
 
 def download_image(img_url, save_path):
     headers = {"User-Agent": "Mozilla/5.0"}
@@ -98,59 +22,45 @@ def download_image(img_url, save_path):
         return True
     return False
 
-def scrape_manga(base_url, total_pages):
-    os.makedirs(DOWNLOAD_PATH, exist_ok=True)
-    
+def zip_translated_folder(folder_path, zip_path):
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for root, _, files in os.walk(folder_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                zipf.write(file_path, os.path.relpath(file_path, folder_path))
+
+def scrape_nhentai(base_url, total_pages):
     headers = {"User-Agent": "Mozilla/5.0"}
     response = requests.get(base_url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
     
-    title = soup.find("h1", class_="title")
-    title_text = "Manga" if not title else " ".join([span.text for span in title.find_all("span")])
-    folder_name = title_text.replace(" ", "_")
-    save_folder = os.path.join(DOWNLOAD_PATH, folder_name)
+    title_tag = soup.find("h1", class_="title")
+    title = "NHentai_Manga" if not title_tag else " ".join([span.text for span in title_tag.find_all("span")])
+    folder_name = title.replace(" ", "_")
+    save_folder = os.path.join("downloads", folder_name)
     os.makedirs(save_folder, exist_ok=True)
-    
-    st.write(f"📂 Folder penyimpanan: `{save_folder}`")
     
     for i in range(1, total_pages + 1):
         page_url = f"{base_url}{i}/"
         page_response = requests.get(page_url, headers=headers)
         page_soup = BeautifulSoup(page_response.text, "html.parser")
         
-        img_section = page_soup.find("section", id="image-container")
-        if img_section:
-            img_tag = img_section.find("img")
-            if img_tag and 'src' in img_tag.attrs:
-                img_url = img_tag['src']
-                img_filename = os.path.join(save_folder, f"page_{i}.webp")
-                if download_image(img_url, img_filename):
-                    st.write(f"✅ Halaman {i} berhasil diunduh.")
-                else:
-                    st.write(f"❌ Gagal mengunduh halaman {i}.")
+        img_tag = page_soup.select_one("#image-container img")
+        if img_tag and 'src' in img_tag.attrs:
+            img_url = img_tag['src']
+            img_filename = os.path.join(save_folder, f"page_{i}.webp")
+            download_image(img_url, img_filename)
     
-    st.success(f"🔠 Menjalankan Translator untuk: `{save_folder}`")
-    run_translator(save_folder)
-    
-    translated_folder = f"{save_folder}-translated"
-    if os.path.exists(translated_folder) and os.listdir(translated_folder):
-        zip_filename = f"{translated_folder}.zip"
-        shutil.make_archive(translated_folder, 'zip', translated_folder)
-        st.success(f"✅ Proses selesai! File ZIP tersimpan di: `{zip_filename}`")
-        st.download_button(label="Unduh Hasil Translate", data=open(zip_filename, "rb").read(), file_name=os.path.basename(zip_filename))
-    else:
-        st.error(f"❌ Gagal menemukan folder hasil translate di: `{translated_folder}`")
+    zip_filename = f"{save_folder}.zip"
+    zip_translated_folder(save_folder, zip_filename)
+    return zip_filename
 
-st.title("📖 Manga Scraper & Translator")
-if st.button("Install Dependencies"):
-    install_dependencies()
-    check_opencv()
-    install_missing_libs()
-    check_directories()
-
-
-base_url = st.text_input("Masukkan URL Manga:")
-total_pages = st.number_input("Masukkan jumlah halaman:", min_value=1, step=1)
-if st.button("Mulai Scraping"):
-    with st.spinner("Sedang memproses..."):
-        scrape_manga(base_url, total_pages)
+st.title("NHentai Manga Translator")
+base_url = st.text_input("Masukkan URL NHentai")
+total_pages = st.number_input("Masukkan jumlah halaman", min_value=1, step=1)
+if st.button("Mulai Scraping & Translate"):
+    if base_url and total_pages:
+        with st.spinner("Memproses..."):
+            zip_file = scrape_nhentai(base_url, total_pages)
+            st.success("✅ Proses selesai! Unduh hasilnya di bawah.")
+            st.download_button("Download Hasil", open(zip_file, "rb"), file_name=os.path.basename(zip_file))
