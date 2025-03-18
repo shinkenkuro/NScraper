@@ -10,17 +10,66 @@ BASE_PATH = "/tmp"
 DOWNLOAD_PATH = os.path.join(BASE_PATH, "Manga_Downloads")
 TRANSLATOR_PATH = os.path.join(BASE_PATH, "manga-image-translator")
 
+def check_directories():
+    """Pastikan direktori ada sebelum menjalankan proses"""
+    if not os.path.exists(DOWNLOAD_PATH):
+        os.makedirs(DOWNLOAD_PATH)
+    if not os.path.exists(TRANSLATOR_PATH):
+        st.error(f"❌ Folder `{TRANSLATOR_PATH}` tidak ditemukan! Jalankan instalasi terlebih dahulu.")
+        return False
+    return True
+
+def check_directories():
+    """Pastikan direktori ada sebelum menjalankan proses"""
+    if not os.path.exists(DOWNLOAD_PATH):
+        os.makedirs(DOWNLOAD_PATH)
+    if not os.path.exists(TRANSLATOR_PATH):
+        st.error(f"❌ Folder `{TRANSLATOR_PATH}` tidak ditemukan! Jalankan instalasi terlebih dahulu.")
+        return False
+    return True
+
 def install_dependencies():
+    """Mengunduh repository manga-image-translator dan menginstal dependencies"""
     repo_url = "https://github.com/zyddnys/manga-image-translator.git"
     
     if not os.path.exists(TRANSLATOR_PATH):
-        with st.spinner("Mengunduh translator..."):
-            subprocess.run(["git", "clone", repo_url, TRANSLATOR_PATH], check=True)
-            st.success("✅ Translator berhasil diunduh!")
+        with st.spinner("Mengunduh manga-image-translator..."):
+            result = subprocess.run(["git", "clone", repo_url, TRANSLATOR_PATH], capture_output=True, text=True)
+            if result.returncode != 0:
+                st.error(f"❌ Gagal clone repository:\n{result.stderr}")
+                return
+    
+    os.chdir(TRANSLATOR_PATH)
+    with st.spinner("Menginstal dependencies..."):
+        result = subprocess.run(["pip", "install", "-r", "requirements.txt"], capture_output=True, text=True)
+        if result.returncode != 0:
+            st.error(f"❌ Gagal install dependencies:\n{result.stderr}")
+            return
+    
+    st.success("✅ Instalasi selesai!")
+    
+def run_translator(save_folder):
+    """Menjalankan manga translator dan menangani error"""
+    if not check_directories():
+        return
+    
+    if not os.path.exists(save_folder):
+        st.error(f"❌ Folder `{save_folder}` tidak ditemukan!")
+        return
 
     os.chdir(TRANSLATOR_PATH)
-    subprocess.run(["pip", "install", "-r", "requirements.txt"], check=True)
-    st.success("✅ Instalasi dependencies selesai!")
+    
+    with st.spinner(f"🔠 Menerjemahkan manga di `{save_folder}`..."):
+        result = subprocess.run(
+            ["python3", "-m", "manga_translator", "local", "-v", "-i", save_folder],
+            capture_output=True, text=True
+        )
+    
+        if result.returncode != 0:
+            st.error(f"❌ Gagal menjalankan translator:\n{result.stderr}")
+            return
+    
+    st.success("✅ Terjemahan selesai!")
 
 def download_image(img_url, save_path):
     headers = {"User-Agent": "Mozilla/5.0"}
