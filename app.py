@@ -37,13 +37,14 @@ def install_dependencies():
     if not os.path.exists(TRANSLATOR_PATH):
         with st.spinner("Mengunduh manga-image-translator..."):
             result = subprocess.run(["git", "clone", repo_url, TRANSLATOR_PATH], capture_output=True, text=True)
+            os.system("apt-get update && apt-get install -y libgl1-mesa-glx libglib2.0-0")
             if result.returncode != 0:
                 st.error(f"❌ Gagal clone repository:\n{result.stderr}")
                 return
     
     os.chdir(TRANSLATOR_PATH)
     with st.spinner("Menginstal dependencies..."):
-        result = subprocess.run(["pip", "install", "-r", "requirements.txt"], capture_output=True, text=True)
+        result = subprocess.run(["pip", "install", "-r", "requirements.txt", "opencv-python-headless], capture_output=True, text=True)
         if result.returncode != 0:
             st.error(f"❌ Gagal install dependencies:\n{result.stderr}")
             return
