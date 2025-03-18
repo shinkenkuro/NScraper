@@ -6,6 +6,9 @@ import shutil
 import git
 from bs4 import BeautifulSoup
 
+# Direktori penyimpanan di Streamlit Cloud
+DOWNLOAD_PATH = "/app/Manga_Downloads"
+
 def install_dependencies():
     repo_url = "https://github.com/zyddnys/manga-image-translator.git"
     clone_dir = "/app/manga-image-translator"
@@ -30,8 +33,7 @@ def download_image(img_url, save_path):
     return False
 
 def scrape_manga(base_url, total_pages):
-    download_path = "/app/Manga_Downloads"
-    os.makedirs(download_path, exist_ok=True)
+    os.makedirs(DOWNLOAD_PATH, exist_ok=True)
     
     headers = {"User-Agent": "Mozilla/5.0"}
     response = requests.get(base_url, headers=headers)
@@ -40,8 +42,10 @@ def scrape_manga(base_url, total_pages):
     title = soup.find("h1", class_="title")
     title_text = "Manga" if not title else " ".join([span.text for span in title.find_all("span")])
     folder_name = title_text.replace(" ", "_")
-    save_folder = os.path.join(download_path, folder_name)
+    save_folder = os.path.join(DOWNLOAD_PATH, folder_name)
     os.makedirs(save_folder, exist_ok=True)
+    
+    st.write(f"📂 Folder penyimpanan: `{save_folder}`")
     
     for i in range(1, total_pages + 1):
         page_url = f"{base_url}{i}/"
@@ -55,23 +59,23 @@ def scrape_manga(base_url, total_pages):
                 img_url = img_tag['src']
                 img_filename = os.path.join(save_folder, f"page_{i}.webp")
                 if download_image(img_url, img_filename):
-                    st.image(img_filename, caption=f"Page {i}")
-
-    path_file = "/app/manga_path.txt"
-    with open(path_file, "w") as f:
-        f.write(save_folder)
+                    st.write(f"✅ Halaman {i} berhasil diunduh.")
+                else:
+                    st.write(f"❌ Gagal mengunduh halaman {i}.")
     
-    st.success(f"🔠 Menjalankan Translator untuk: {save_folder}")
+    st.success(f"🔠 Menjalankan Translator untuk: `{save_folder}`")
+    
+    os.chdir("/app/manga-image-translator")
     os.system(f"python -m manga_translator local -v -i \"{save_folder}\"")
     
     translated_folder = f"{save_folder}-translated"
-    if os.path.exists(translated_folder):
+    if os.path.exists(translated_folder) and os.listdir(translated_folder):
         zip_filename = f"{translated_folder}.zip"
         shutil.make_archive(translated_folder, 'zip', translated_folder)
-        st.success(f"✅ Proses selesai! File ZIP tersimpan di: {zip_filename}")
+        st.success(f"✅ Proses selesai! File ZIP tersimpan di: `{zip_filename}`")
         st.download_button(label="Unduh Hasil Translate", data=open(zip_filename, "rb").read(), file_name=os.path.basename(zip_filename))
     else:
-        st.error("❌ Gagal menemukan folder hasil translate!")
+        st.error(f"❌ Gagal menemukan folder hasil translate di: `{translated_folder}`")
 
 st.title("📖 Manga Scraper & Translator")
 if st.button("Install Dependencies"):
