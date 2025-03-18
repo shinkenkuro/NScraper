@@ -44,7 +44,7 @@ def install_dependencies():
     
     os.chdir(TRANSLATOR_PATH)
     with st.spinner("Menginstal dependencies..."):
-        result = subprocess.run(["pip", "install", "-r", "requirements.txt", "opencv-python-headless], capture_output=True, text=True)
+        result = subprocess.run(["pip", "install", "-r", "requirements.txt", "opencv-python-headless"], capture_output=True, text=True)
         if result.returncode != 0:
             st.error(f"❌ Gagal install dependencies:\n{result.stderr}")
             return
