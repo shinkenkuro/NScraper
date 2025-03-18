@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 
 def install_dependencies():
     repo_url = "https://github.com/zyddnys/manga-image-translator.git"
-    clone_dir = "./manga-image-translator"
+    clone_dir = "/app/manga-image-translator"
     
     if not os.path.exists(clone_dir):
         with st.spinner("Mengunduh translator..."):
@@ -30,7 +30,7 @@ def download_image(img_url, save_path):
     return False
 
 def scrape_manga(base_url, total_pages):
-    download_path = "./Manga_Downloads"
+    download_path = "/app/Manga_Downloads"
     os.makedirs(download_path, exist_ok=True)
     
     headers = {"User-Agent": "Mozilla/5.0"}
@@ -57,7 +57,7 @@ def scrape_manga(base_url, total_pages):
                 if download_image(img_url, img_filename):
                     st.image(img_filename, caption=f"Page {i}")
 
-    path_file = "./manga_path.txt"
+    path_file = "/app/manga_path.txt"
     with open(path_file, "w") as f:
         f.write(save_folder)
     
