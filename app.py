@@ -3,6 +3,7 @@ import os
 import requests
 import shutil
 import subprocess
+import shlex
 from bs4 import BeautifulSoup
 
 # Direktori Penyimpanan yang Diperbolehkan oleh Streamlit Cloud
@@ -12,17 +13,7 @@ TRANSLATOR_PATH = os.path.join(BASE_PATH, "manga-image-translator")
 
 def check_directories():
     """Pastikan direktori ada sebelum menjalankan proses"""
-    if not os.path.exists(DOWNLOAD_PATH):
-        os.makedirs(DOWNLOAD_PATH)
-    if not os.path.exists(TRANSLATOR_PATH):
-        st.error(f"❌ Folder `{TRANSLATOR_PATH}` tidak ditemukan! Jalankan instalasi terlebih dahulu.")
-        return False
-    return True
-
-def check_directories():
-    """Pastikan direktori ada sebelum menjalankan proses"""
-    if not os.path.exists(DOWNLOAD_PATH):
-        os.makedirs(DOWNLOAD_PATH)
+    os.makedirs(DOWNLOAD_PATH, exist_ok=True)
     if not os.path.exists(TRANSLATOR_PATH):
         st.error(f"❌ Folder `{TRANSLATOR_PATH}` tidak ditemukan! Jalankan instalasi terlebih dahulu.")
         return False
@@ -56,13 +47,14 @@ def run_translator(save_folder):
     if not os.path.exists(save_folder):
         st.error(f"❌ Folder `{save_folder}` tidak ditemukan!")
         return
-
+    
+    safe_path = shlex.quote(save_folder)
     os.chdir(TRANSLATOR_PATH)
     
     with st.spinner(f"🔠 Menerjemahkan manga di `{save_folder}`..."):
         result = subprocess.run(
-            ["python3", "-m", "manga_translator", "local", "-v", "-i", save_folder],
-            capture_output=True, text=True
+            f"python3 -m manga_translator local -v -i {safe_path}",
+            shell=True, capture_output=True, text=True
         )
     
         if result.returncode != 0:
@@ -113,9 +105,7 @@ def scrape_manga(base_url, total_pages):
                     st.write(f"❌ Gagal mengunduh halaman {i}.")
     
     st.success(f"🔠 Menjalankan Translator untuk: `{save_folder}`")
-    
-    os.chdir(TRANSLATOR_PATH)
-    subprocess.run(["python", "-m", "manga_translator", "local", "-v", "-i", save_folder], check=True)
+    run_translator(save_folder)
     
     translated_folder = f"{save_folder}-translated"
     if os.path.exists(translated_folder) and os.listdir(translated_folder):
